@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import warnings
 
 class Strategy:
     """
@@ -43,6 +44,13 @@ class Strategy:
 
     def generate_signal(self):
         pass
+
+    @property
+    def signal(self):
+        """Returns the signal series if generated in data, or None."""
+        if hasattr(self, 'data') and self.data is not None and 'signal' in self.data:
+            return self.data['signal']
+        return None
 
 class MACrossover(Strategy):
     """
@@ -120,7 +128,34 @@ class MLHybridStrategy(Strategy):
     def __init__(self, asset_data, base_strategy, ml_predictions):
         super().__init__(asset_data)
         self.base_strategy = base_strategy
-        self.ml_predictions = np.asarray(ml_predictions).ravel()
+        ml_arr = np.asarray(ml_predictions).ravel()
+
+        if np.issubdtype(ml_arr.dtype, np.floating) and np.any((ml_arr > 0.0) & (ml_arr < 1.0)):
+            warnings.warn(
+                "ml_predictions contains continuous probabilities in [0, 1] rather than binary integers {0, 1}. "
+                "Automatically thresholding at 0.5.",
+                UserWarning,
+                stacklevel=2,
+            )
+            ml_arr = (ml_arr >= 0.5).astype(int)
+        self.ml_predictions = ml_arr
+
+        # Determine reference length from base_strategy or self.data
+        ref_len = None
+        if hasattr(self.base_strategy, 'signal') and self.base_strategy.signal is not None:
+            ref_len = len(self.base_strategy.signal)
+        elif hasattr(self.base_strategy, 'data') and self.base_strategy.data is not None:
+            ref_len = len(self.base_strategy.data)
+        elif self.data is not None:
+            ref_len = len(self.data)
+
+        if ref_len is not None and len(self.ml_predictions) < ref_len:
+            warnings.warn(
+                f"Length of ml_predictions ({len(self.ml_predictions)}) is less than base strategy length ({ref_len}). "
+                f"Missing leading {ref_len - len(self.ml_predictions)} days will default to cash (0).",
+                UserWarning,
+                stacklevel=2,
+            )
 
     def generate_signal(self):
         # 1. Run underlying technical strategy signal logic

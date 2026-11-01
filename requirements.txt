@@ -1,6 +1,9 @@
+# DATA-3401 Honors Project Requirements
+# Recommended Python Environment: Python 3.12 or 3.14 (.venv)
 numpy>=2.0.0
 pandas>=2.0.0
 matplotlib>=3.8.0
 yfinance>=0.2.40
 jupyter>=1.0.0
 ipykernel>=6.0.0
+torch>=2.2.0
