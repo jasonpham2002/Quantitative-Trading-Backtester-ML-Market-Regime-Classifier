@@ -1,4 +1,4 @@
-# DATA 3401 Honors Project: Quantitative Trading Backtester & ML Market Regime Classifier
+# Quantitative Trading Backtester & ML Market Regime Classifier
 
 This repository holds the **DATA 3401 (Python for Data Science 1)** Honors Contract work. It has two connected projects, tested on the **SPDR S&P 500 ETF Trust (`SPY`)**:
 
