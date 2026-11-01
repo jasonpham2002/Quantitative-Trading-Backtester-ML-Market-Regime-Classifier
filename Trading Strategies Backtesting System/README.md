@@ -1,6 +1,6 @@
 # Quantitative Trading Backtesting System (Project 1)
 
-This directory contains the Object-Oriented Quantitative Trading Backtesting Engine and the integrated research notebook (`TradingNotebook.ipynb`) for the DATA 3401 Honors Project.
+This directory contains the object-oriented Quantitative Trading Backtesting Engine and the integrated research notebook (`TradingNotebook.ipynb`) for the DATA 3401 Honors Project. The ML classifiers it consumes live in [`../Market_Regime_Prediction/`](../Market_Regime_Prediction/README.md) (Project 2).
 
 ---
 
@@ -9,24 +9,44 @@ This directory contains the Object-Oriented Quantitative Trading Backtesting Eng
 ### 1. `pipeline.py` (`DataPipeline`)
 - Downloads split-adjusted historical OHLCV data via `yfinance` (`auto_adjust=True`) or loads cached CSV data (`SPY_5_years`).
 - Normalizes ticker inputs (`str` or `list`) using `isinstance()` and exposes `self.interval` / `self.intervals`.
-- Automatically detects and extracts single-ticker cross-sections from MultiIndex columns using `df.xs()`, followed by forward-filling (`.ffill()`).
+- Detects and extracts single-ticker cross-sections from MultiIndex columns using `df.xs()`, then forward-fills gaps (`.ffill()`).
 
-### 2. `strategy.py` (`Strategy` Hierarchy)
-All trading strategies inherit from the `Strategy` base class, which defines `generate_signal()`, `execute_trade()`, and `calculate_returns()` / `calculate_return()`:
-- **`MACrossover`**: Dual Simple Moving Average crossover strategy (`short_window=20`, `long_window=50`). Triggers a Buy signal (`1`) when `SMA_20 > SMA_50` and exits to cash (`0`) when `SMA_20 <= SMA_50`.
-- **`RSIMeanReversion`**: Manually calculates the 14-day Relative Strength Index (RSI) using NumPy arrays (`np.where`). Triggers a Buy signal (`1`) when `RSI < 30` (oversold) and exits to cash (`0`) when `RSI > 70` (overbought), holding the prior position state in between.
-- **`MLHybridStrategy`**: Integrates the Project 2 NumPy `LogisticRegression` classifier as a regime filter. Allows long exposure (`1`) only when technical trend conditions are active (`MA Crossover == 1` or `Close > SMA_20`) **and** the ML classifier independently predicts a Bullish (`1`) market regime.
+### 2. `strategy.py` (`Strategy` hierarchy)
+All strategies inherit from `Strategy`, which defines `generate_signal()`, `execute_trade()` and `calculate_returns()` / `calculate_return()`:
+- **`MACrossover`**: Dual SMA crossover (`short_window=20`, `long_window=50`). Buy (`1`) when `SMA_20 > SMA_50`, otherwise cash (`0`).
+- **`RSIMeanReversion`**: Computes the 14-day RSI with NumPy. Buy (`1`) when `RSI < 30`, exit to cash (`0`) when `RSI > 70`, holding the prior state in between.
+- **`MLHybridStrategy(asset_data, base_strategy, ml_predictions)`**: Allows long exposure only when the technical trend is active (`MA Crossover == 1` or `Close > SMA_20`) **and** the ML classifier predicts a Bullish regime (`1`).
+  - It accepts predictions from **any** Project 2 model: the NumPy `LogisticRegression`, or a PyTorch MLP, LSTM, GRU, 1D-CNN or Transformer (`DeepRegimeClassifier`).
+  - If `ml_predictions` holds continuous probabilities, they are thresholded at 0.5 with a `UserWarning`.
+  - If `ml_predictions` is shorter than the price series (for example, test-split predictions only), the missing leading days default to cash, with a `UserWarning`.
 
 ### 3. `backtester.py` (`Backtest`)
-- Simulates daily trading execution over historical price series starting with `$100,000` cash.
-- Logs each Buy and Sell transaction (`Action`, `Shares`, `Price`, `Profit`) in `self.trade_history` and tracks daily mark-to-market portfolio value in `self.tot_net_worth`.
-- **`cal_metrics()`**: Computes **Total Return**, **Annualized Sharpe Ratio** ($\sqrt{252}$ scaling), **Max Drawdown**, **Win Rate**, **Profit Factor**, and the **Buy & Hold Benchmark Return**.
-- **`plot_result()` & `plot_drawdown()`**: Generates portfolio equity curves, price charts with green trade-position shading, and drawdown severity curves.
+- Simulates daily trading from \$100,000 and tracks mark-to-market net worth in `self.tot_net_worth`.
+- Logs each Buy and Sell (`Action`, `Shares`, `Price`, `Profit`) in `self.trade_history`.
+- **`cal_metrics()`** returns Total Return, Annualized Sharpe Ratio (√252 scaling), Max Drawdown, Win Rate, Profit Factor and the Buy & Hold benchmark return.
+- **`plot_result()`** and **`plot_drawdown()`** draw the equity curve, price with green position shading, and the drawdown curve.
 
 ### 4. `TradingNotebook.ipynb`
-End-to-end Jupyter Notebook containing:
-- **Chapter 1**: Data Pipeline & Exploratory Data Analysis (5-year `SPY` price, 20/50 SMAs, and return distribution).
-- **Chapter 2**: Project 1 Standalone Strategy Backtesting (`MACrossover` and `RSIMeanReversion`).
-- **Chapter 3**: Project 2 ML Market Regime Classifier (feature engineering, training loss convergence, feature importance, confusion matrix, and regime prediction overlay).
-- **Chapter 4**: System Integration (`MLHybridStrategy` backtest).
-- **Chapter 5**: Comprehensive Comparative Analysis & Written Research Report.
+End-to-end executed notebook:
+- **Chapter 1**: Data pipeline and EDA (5-year `SPY` price, 20/50 SMAs, return distribution).
+- **Chapter 2**: Standalone strategy backtests (`MACrossover`, `RSIMeanReversion`).
+- **Chapter 3**: Project 2 NumPy classifier (features, loss convergence, feature weights, confusion matrix, regime overlay).
+- **Chapter 4**: System integration (`MLHybridStrategy` backtest).
+- **Chapter 5**: Comparative analysis and written research report.
+- **Chapter 6**: PyTorch deep learning benchmark:
+  - 14 extended stationary features and a 65/15/20 train/validation/test split with sequence warmup.
+  - EDA charts: correlation heatmap, regime feature distributions, volatility timeline.
+  - Training curves for MLP, LSTM, GRU, 1D-CNN and Transformer.
+  - Confusion matrices and ROC/PR curves, plus a permutation-importance heatmap and the Transformer attention heatmap.
+  - Out-of-sample hybrid backtests, with a regime-agreement barcode, comparative equity/drawdown curves and a risk-return frontier.
+
+---
+
+## Running
+
+```bash
+pip install -r ../requirements.txt
+jupyter notebook TradingNotebook.ipynb
+```
+
+The `.py` modules import each other by file name, so run them from inside this directory. The notebook adds `../Market_Regime_Prediction` to its path.
